@@ -1,0 +1,169 @@
+---
+title: "Untitled"
+author: "Wouter van de Burgt"
+date: "1/4/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(rvest)
+library(lubridate)
+library(splitstackshape)
+library(tidytext)
+
+setwd("~/Semester 3")
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+setwd("~/Semester 3")
+
+
+t2020 <- read_excel("TOP-2000-2020.xlsx")%>%
+  mutate(dec = JAAR - JAAR%%10)
+
+read_excel("TOP-2000-2020.xlsx")%>%
+  group_by(JAAR)%>%
+  slice_min(order_by = NR., n=1)%>%
+  arrange(desc(JAAR))
+
+
+read_excel("TOP-2000-2020.xlsx")%>%
+  count(JAAR) %>%
+  arrange(desc(JAAR))%>%
+  ggplot(aes(JAAR, n))+
+  geom_col()+
+  coord_flip()+
+  scale_x_continuous(breaks = t2020$JAAR)
+
+
+read_excel("TOP-2000-2020.xlsx")%>%
+  mutate(dec = JAAR - JAAR%%10)%>%
+  count(dec)%>%
+  arrange(desc(dec))%>%
+  ggplot(aes(dec, n))+
+  geom_col()+
+  coord_flip()+
+  scale_x_continuous(breaks = t2020$dec)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+link <- "https://www.knmi.nl/nederland-nu/klimatologie/lijsten/hellmann"
+#read_html(link)%>% 
+#    html_node('table[border="1"]') %>%    # get first table node with a border attribute of "1"
+#    html_table(header = TRUE, fill = TRUE)
+```
+
+```{r}
+wm <- read_csv("walter mitty.txt", col_names = "Full")
+
+wm <- read_csv("waltermitty3.txt", col_names = "Full")
+wm
+#wm2 <- cSplit(wm, splitCols = "Full", sep = "/", direction = "wide", drop = T)
+wm2 <- separate(wm, Full, c("tijd", "rest"), sep = 21, remove = T, fill = "right")
+#wm3 <- cSplit(wm2, splitCols = "Full_2", sep = ": ", direction = "wide", drop = T)
+wm3 <- separate(wm2, rest, c("naam", "rest"), sep = ":", remove = T, fill = "left")
+wm3
+
+wm3 <- separate(wm3, tijd, c("tijd"), sep = ">")
+wm3 <- separate(wm3, tijd, c("tijd"), sep = ">")
+wm3 <- separate(wm3, tijd, c("tijd"), sep = "/")
+
+wm3<-wm3%>%
+  mutate(tijd = dmy_hms(tijd), tekst = tolower(rest))
+wm3
+```
+
+```{r}
+# wm3%>%
+#   arrange(Full_2_3)
+# 
+# wm3%>%
+#   count(Full_2_1)%>%
+#   drop_na()%>%
+#   arrange(desc(n))%>%
+#   top_n(7)%>%
+#   ggplot(aes(Full_2_1, n, fill = Full_2_1))+
+#   geom_bar(stat = "identity")+
+#   coord_flip()+
+#   labs(x = "")+
+#   theme(legend.position="none")
+wm3
+
+# wm4 <- wm3%>%
+#   mutate(dag = dmy_hm(Full_1))%>%
+#   mutate(naam = Full_2_1)%>%
+#   select(dag, naam, Full_2_2, Full_2_3, Full_2_4, Full_2_5, Full_2_6)%>%
+#   #mutate(tekst = Full_2_2 %+% Full_2_3 %+% Full_2_4 %+% Full_2_5 %+% Full2_6)%>%
+#   unite(tekst,Full_2_2, Full_2_3, Full_2_4, Full_2_5, Full_2_6, na.rm = TRUE)
+
+wm3%>%
+  filter(naam %in% c("Sam Koene", "Yaris Van Thiel", "Dennis De South Park Loser", "Danny Stomme Nerd", "Wouter De Bidkabouter", "Marten Hanegraaf", "Liam Visser"))%>%
+  group_by(jaar = year(tijd), maand = month(tijd, label = T))%>%
+  count(naam)%>%
+   drop_na()%>%
+   arrange(desc(n))%>%
+  filter(naam == "Sam Koene")%>%
+   #top_n(7)%>%
+   ggplot(aes(naam, n, fill = naam))+
+   geom_bar(stat = "identity")+
+   coord_flip()+
+   labs(x = "")+
+   theme(legend.position="none")+
+  facet_grid(rows = vars(maand), cols = vars(jaar))
+
+  
+
+wm3%>%
+  filter(day(tijd) == 8 & month(tijd) == 10 & year(tijd) == 2018)
+```
+
+```{r}
+#wmSam <- wm4 %>% filter(naam == "Sam Koene")
+
+as <- data_frame(text = wm3$tekst, persoon = wm3$naam) %>%
+    group_by(persoon)%>%
+    unnest_tokens(word, text) %>%    # split words
+    count(word, sort = TRUE)
+as 
+
+k <- as%>%
+  filter(persoon %in% c("Sam Koene", "Yaris Van Thiel", "Dennis De South Park Loser", "Danny Stomme Nerd", "Wouter De Bidkabouter", "Marten Hanegraaf", "Liam Visser"))%>%
+  group_by(persoon)%>%
+  summarize(tot = sum(n))
+k
+
+as%>%
+  filter(persoon %in% c("Sam Koene", "Yaris Van Thiel", "Dennis De South Park Loser", "Danny Stomme Nerd", "Wouter De Bidkabouter", "Marten Hanegraaf", "Liam Visser"))%>%
+  filter(word %in% c("tyfus"))%>%
+  group_by(persoon)%>%
+  summarize(totn = sum(n))%>%
+  inner_join(k, by = "persoon")%>%
+  mutate(perc = totn/tot*100)%>%
+  arrange(desc(perc))
+
+
+# wm4%>%
+#   filter(is.na(naam))
+# wm4
+# wm4%>%
+#   ggplot(aes(factor(month(dag))))+
+#   geom_bar()+
+#   facet_wrap(~year(dag))
+
+```
+

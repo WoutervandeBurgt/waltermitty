@@ -1,0 +1,64 @@
+---
+title: "shiny wm"
+author: "Wouter van de Burgt"
+date: "2/22/2021"
+output: html_document
+---
+
+```{r echo = FALSE}
+library(shiny)
+library(tidyverse)
+library(shinydashboard)
+library(lubridate)
+library(splitstackshape)
+library(tidytext)
+
+
+wm <- read_csv("waltermitty.txt", col_names = "Full")
+wm2 <- cSplit(wm, splitCols = "Full", sep = " - ", direction = "wide", drop = TRUE)
+wm3 <- cSplit(wm2, splitCols = "Full_2", sep = ": ", direction = "wide", drop = T)
+
+waltermitty <- wm3%>%
+  mutate(dag = dmy_hm(Full_1))%>%
+  mutate(naam = Full_2_1)%>%
+  select(dag, naam, Full_2_2, Full_2_3, Full_2_4, Full_2_5, Full_2_6)%>%
+  #mutate(tekst = Full_2_2 %+% Full_2_3 %+% Full_2_4 %+% Full_2_5 %+% Full2_6)%>%
+  unite(tekst,Full_2_2, Full_2_3, Full_2_4, Full_2_5, Full_2_6, na.rm = TRUE)
+  
+server <- function(input, output) {
+   output$woorden <- renderTable(
+     data_frame(text = waltermitty$tekst, persoon = waltermitty$naam) %>%
+      group_by(persoon)%>%
+      unnest_tokens(word, text, to_lower = TRUE) %>%    # split words
+      count(word, sort = TRUE)%>%
+      filter(word == input$wrd)
+   )
+     
+}
+
+ui <- dashboardPage(
+  skin = "blue",
+  dashboardHeader(title = "USA 2012"),
+  dashboardSidebar(
+      sidebarMenu(
+        menuItem("Walter Mitty", tabName = "wm")
+        )
+    ),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "wm",
+          fluidRow(
+            textInput(inputId = 'wrd', label = 'test', value = "test"),
+            box(tableOutput('woorden'))
+          )
+        )
+      )
+    )
+  )
+```
+
+
+```{r}
+shinyApp(ui, server)
+```
+
